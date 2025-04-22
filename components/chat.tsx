@@ -30,11 +30,17 @@ const Chat: React.FC<ChatProps> = ({ items, onSendMessage }) => {
       onSendMessage(inputMessageText);
       setinputMessageText("");
     }
-  }, [onSendMessage, inputMessageText]);
+  }, [onSendMessage, inputMessageText, isComposing]);
 
+  // Reset input when switching characters
+  useEffect(() => {
+    setinputMessageText("");
+  }, [selectedCharacter]);
+
+  // Scroll to bottom when messages change or character changes
   useEffect(() => {
     scrollToBottom();
-  }, [items]);
+  }, [items, selectedCharacter]);
 
   return (
     <div className="flex flex-col h-full">
@@ -49,7 +55,7 @@ const Chat: React.FC<ChatProps> = ({ items, onSendMessage }) => {
             />
           )}
           {items.map((item, index) => (
-            <React.Fragment key={index}>
+            <React.Fragment key={`${selectedCharacter}-${index}`}>
               {item.type === "tool_call" ? (
                 <ToolCall toolCall={item} />
               ) : item.type === "message" ? (
@@ -90,6 +96,7 @@ const Chat: React.FC<ChatProps> = ({ items, onSendMessage }) => {
             <button
               disabled={!inputMessageText}
               data-testid="send-button"
+              aria-label="Send message"
               className="flex h-[44px] w-[44px] items-center justify-center rounded-r-lg bg-black text-white transition-colors hover:opacity-70 disabled:bg-gray-100 disabled:text-gray-400"
               onClick={() => {
                 onSendMessage(inputMessageText);

@@ -40,9 +40,12 @@ export const handleTurn = async (
   tools: any[],
   onMessage: (data: any) => void
 ) => {
-  const { selectedCharacter, characters } = useConversationStore.getState();
+  const { selectedCharacter, characters, setLastResponseId } = useConversationStore.getState();
   const currentCharacter = characters[selectedCharacter];
-  const previousResponseId = currentCharacter.lastResponseId;
+  // Only use previousResponseId if it starts with 'resp_'
+  const previousResponseId = currentCharacter.lastResponseId?.startsWith('resp_') 
+    ? currentCharacter.lastResponseId 
+    : undefined;
 
   try {
     const response = await fetch("/api/turn_response", {
@@ -68,17 +71,16 @@ export const handleTurn = async (
     const decoder = new TextDecoder();
     let done = false;
     let buffer = "";
+    let currentResponseId: string | null = null;
 
     while (!done) {
       const { value, done: doneReading } = await reader.read();
       done = doneReading;
       
       if (value) {
-        // Process chunks immediately without buffering
         const chunkValue = decoder.decode(value, { stream: true });
         buffer += chunkValue;
 
-        // Split on double newlines and process each chunk
         const lines = buffer.split("\n\n");
         buffer = lines.pop() || "";
 
@@ -91,7 +93,15 @@ export const handleTurn = async (
             }
             try {
               const data = JSON.parse(dataStr);
-              // Ensure immediate processing of each chunk
+              
+              // Track the response ID from the response.created event
+              if (data.event === "response.created" && data.data?.id?.startsWith('resp_')) {
+                currentResponseId = data.data.id;
+                if (currentResponseId) {
+                  setLastResponseId(currentResponseId);
+                }
+              }
+              
               await Promise.resolve().then(() => onMessage(data));
             } catch (e) {
               console.error("Error parsing data:", e);
@@ -101,12 +111,17 @@ export const handleTurn = async (
       }
     }
 
-    // Process any remaining buffer data
     if (buffer && buffer.startsWith("data: ")) {
       const dataStr = buffer.slice(6);
       if (dataStr !== "[DONE]") {
         try {
           const data = JSON.parse(dataStr);
+          if (data.event === "response.created" && data.data?.id?.startsWith('resp_')) {
+            currentResponseId = data.data.id;
+            if (currentResponseId) {
+              setLastResponseId(currentResponseId);
+            }
+          }
           await Promise.resolve().then(() => onMessage(data));
         } catch (e) {
           console.error("Error parsing remaining data:", e);
@@ -245,12 +260,7 @@ export const processMessages = async () => {
             });
             currentCharacter.conversationItems.push({
               role: "assistant",
-              content: [
-                {
-                  type: "output_text",
-                  text,
-                },
-              ],
+              content: text,
             });
             setChatMessages([...currentCharacter.chatMessages]);
             setConversationItems([...currentCharacter.conversationItems]);
@@ -300,7 +310,7 @@ export const processMessages = async () => {
         if (lastMessage && lastMessage.type === "message") {
           currentCharacter.conversationItems.push({
             role: "assistant",
-            content: lastMessage.content,
+            content: lastMessage.content[0].text || "",
           });
           setConversationItems([...currentCharacter.conversationItems]);
         }
@@ -408,8 +418,6 @@ export const processMessages = async () => {
         }
         break;
       }
-
-      // Handle other events as needed
     }
   });
 };

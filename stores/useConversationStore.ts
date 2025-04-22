@@ -30,7 +30,7 @@ interface ConversationState {
   rawSet: (state: any) => void;
 }
 
-const initialCharacterState = (characterId: string) => ({
+const initialCharacterState = (_characterId: string) => ({
   chatMessages: [],
   conversationItems: [],
   lastResponseId: undefined,
@@ -60,10 +60,33 @@ if (typeof window !== 'undefined') {
 
 const useConversationStore = create<ConversationState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       ...createInitialState(),
       
-      setSelectedCharacter: (character) => set({ selectedCharacter: character }),
+      setSelectedCharacter: (character) => {
+        set((state) => {
+          // Only update if the character is actually changing
+          if (state.selectedCharacter === character) return state;
+          
+          // Get the character's existing state
+          const characterState = state.characters[character];
+          
+          // Create a new state object to force a UI update
+          const newState = {
+            selectedCharacter: character,
+            characters: {
+              ...state.characters,
+              [character]: {
+                ...characterState,
+                chatMessages: [...characterState.chatMessages],
+                conversationItems: [...characterState.conversationItems],
+              }
+            }
+          };
+          
+          return newState;
+        });
+      },
       
       setChatMessages: (items) =>
         set((state) => ({

@@ -10,8 +10,12 @@ export default function CharacterSelector({ onClose }: CharacterSelectorProps) {
   const { selectedCharacter, setSelectedCharacter, clearConversation } = useConversationStore();
 
   const handleCharacterChange = (characterId: string) => {
-    setSelectedCharacter(characterId);
-    onClose();
+    if (characterId !== selectedCharacter) {
+      setSelectedCharacter(characterId);
+      setTimeout(() => onClose(), 0);
+    } else {
+      onClose();
+    }
   };
 
   return (
