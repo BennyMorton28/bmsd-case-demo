@@ -74,9 +74,25 @@ const Message: React.FC<MessageProps> = ({ message, setIsGenerating }) => {
   const isUserMessage = message.role === 'user' as const;
   const isAssistantMessage = message.role === 'assistant' as const;
 
-  // Minimal markdown components configuration
+  // Markdown components configuration
   const MarkdownComponents = {
-    code({ inline, className, children, ...props }: any) {
+    p: ({ children }: any) => <p className="mb-4 leading-7">{children}</p>,
+    strong: ({ children }: any) => <strong className="font-bold">{children}</strong>,
+    em: ({ children }: any) => <em className="italic">{children}</em>,
+    ul: ({ children }: any) => <ul className="list-disc ml-6 mb-4 space-y-2">{children}</ul>,
+    ol: ({ children }: any) => <ol className="list-decimal ml-6 mb-4 space-y-2">{children}</ol>,
+    li: ({ children }: any) => <li className="mb-1">{children}</li>,
+    a: ({ href, children }: any) => (
+      <a 
+        href={href} 
+        className="text-blue-600 hover:text-blue-800 hover:underline"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {children}
+      </a>
+    ),
+    code: ({ inline, className, children, ...props }: any) => {
       const match = /language-(\w+)/.exec(className || '');
       const language = match ? match[1] : '';
       
@@ -124,7 +140,7 @@ const Message: React.FC<MessageProps> = ({ message, setIsGenerating }) => {
       
       <div className="flex-1 px-4 space-y-2 overflow-hidden">
         {isAssistantMessage && !hasBeenDisplayedBefore() ? (
-          <div className="prose prose-stone prose-headings:font-bold prose-strong:font-bold prose-pre:p-0">
+          <div className="prose prose-stone prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-headings:font-bold prose-strong:font-bold prose-pre:p-0">
             <TypewriterEffectWithMarkdown 
               text={messageText} 
               onComplete={onTypewriterComplete}
@@ -141,7 +157,7 @@ const Message: React.FC<MessageProps> = ({ message, setIsGenerating }) => {
             )}
           </div>
         ) : (
-          <div className="prose prose-stone prose-headings:font-bold prose-strong:font-bold prose-pre:p-0">
+          <div className="prose prose-stone prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-headings:font-bold prose-strong:font-bold prose-pre:p-0">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={MarkdownComponents}
