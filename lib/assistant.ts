@@ -158,7 +158,7 @@ export const processMessages = async () => {
         messageContents.set(item_id, newContent);
 
         // Find or create message
-        let messageIndex = currentCharacter.chatMessages.findIndex(
+        const messageIndex = currentCharacter.chatMessages.findIndex(
           (m) => m.type === "message" && m.id === item_id
         );
 
@@ -175,18 +175,28 @@ export const processMessages = async () => {
               },
             ],
           } as MessageItem);
+          
+          // Update immediately to start showing the message
+          setChatMessages([...currentCharacter.chatMessages]);
         } else {
           // Update existing message
           const message = currentCharacter.chatMessages[messageIndex];
           if (message.type === "message") {
-            message.content[0] = {
-              type: "output_text",
-              text: newContent,
-            };
+            // Create a new content object to ensure React detects the change
+            message.content = [
+              {
+                ...message.content[0],
+                type: "output_text",
+                text: newContent,
+              },
+            ];
+            
+            // Use a shallow copy of the array to trigger React updates
+            const updatedMessages = [...currentCharacter.chatMessages];
+            setChatMessages(updatedMessages);
           }
         }
-
-        setChatMessages([...currentCharacter.chatMessages]);
+        
         break;
       }
 
