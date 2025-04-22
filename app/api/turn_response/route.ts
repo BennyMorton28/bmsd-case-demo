@@ -2,9 +2,11 @@ import { MODEL } from "@/config/constants";
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
+export const runtime = 'edge';
+
 export async function POST(request: Request) {
   try {
-    const { messages, tools } = await request.json();
+    const { messages, tools, previousResponseId } = await request.json();
     console.log("1. Received messages:", messages);
 
     const openai = new OpenAI();
@@ -16,6 +18,8 @@ export async function POST(request: Request) {
       tools,
       stream: true,
       parallel_tool_calls: false,
+      previous_response_id: previousResponseId,
+      store: true, // Enable response storage for threading
     });
 
     // Create a ReadableStream that emits SSE data
@@ -28,14 +32,22 @@ export async function POST(request: Request) {
               event: event.type,
               data: event,
             });
-            controller.enqueue(`data: ${data}\n\n`);
+            
+            // Ensure each chunk is flushed immediately
+            controller.enqueue(new TextEncoder().encode(`data: ${data}\n\n`));
           }
           // End of stream
-          controller.enqueue(`data: [DONE]\n\n`);
+          controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`));
           controller.close();
         } catch (error) {
           console.error("Error in streaming loop:", error);
-          controller.error(error);
+          // Send error event to client
+          const errorData = JSON.stringify({
+            event: "error",
+            data: { message: error instanceof Error ? error.message : "Stream error occurred" },
+          });
+          controller.enqueue(new TextEncoder().encode(`data: ${errorData}\n\n`));
+          controller.close();
         }
       },
     });
@@ -43,8 +55,10 @@ export async function POST(request: Request) {
     return new Response(stream, {
       headers: {
         "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
+        "Cache-Control": "no-cache, no-transform",
         "Connection": "keep-alive",
+        "X-Accel-Buffering": "no", // Disable nginx buffering
+        "Transfer-Encoding": "chunked",
       },
     });
   } catch (error) {

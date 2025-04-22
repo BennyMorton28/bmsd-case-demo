@@ -40,14 +40,21 @@ export const handleTurn = async (
   tools: any[],
   onMessage: (data: any) => void
 ) => {
+  const { selectedCharacter, characters } = useConversationStore.getState();
+  const currentCharacter = characters[selectedCharacter];
+  const previousResponseId = currentCharacter.lastResponseId;
+
   try {
-    // Get response from the API (defined in app/api/turn_response/route.ts)
     const response = await fetch("/api/turn_response", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache"
+      },
       body: JSON.stringify({
         messages: messages,
         tools: tools,
+        previousResponseId: previousResponseId,
       }),
     });
 
@@ -57,7 +64,6 @@ export const handleTurn = async (
     }
 
     console.log("Starting to read stream...");
-    // Reader for streaming data
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
     let done = false;
@@ -68,48 +74,42 @@ export const handleTurn = async (
       done = doneReading;
       
       if (value) {
-        const chunkValue = decoder.decode(value);
-        console.log("Raw chunk received:", chunkValue);
+        // Process chunks immediately without buffering
+        const chunkValue = decoder.decode(value, { stream: true });
         buffer += chunkValue;
 
+        // Split on double newlines and process each chunk
         const lines = buffer.split("\n\n");
         buffer = lines.pop() || "";
 
         for (const line of lines) {
-          console.log("Processing line:", line);
           if (line.startsWith("data: ")) {
             const dataStr = line.slice(6);
-            console.log("Data string:", dataStr);
             if (dataStr === "[DONE]") {
-              console.log("Received [DONE] signal");
               done = true;
               break;
             }
             try {
               const data = JSON.parse(dataStr);
-              console.log("Parsed data:", data);
-              onMessage(data);
+              // Ensure immediate processing of each chunk
+              await Promise.resolve().then(() => onMessage(data));
             } catch (e) {
               console.error("Error parsing data:", e);
-              console.error("Problematic data string:", dataStr);
             }
           }
         }
       }
     }
 
-    // Handle any remaining data in buffer
+    // Process any remaining buffer data
     if (buffer && buffer.startsWith("data: ")) {
       const dataStr = buffer.slice(6);
-      console.log("Processing remaining buffer:", dataStr);
       if (dataStr !== "[DONE]") {
         try {
           const data = JSON.parse(dataStr);
-          console.log("Parsed remaining data:", data);
-          onMessage(data);
+          await Promise.resolve().then(() => onMessage(data));
         } catch (e) {
           console.error("Error parsing remaining data:", e);
-          console.error("Problematic remaining data string:", dataStr);
         }
       }
     }
@@ -124,6 +124,7 @@ export const processMessages = async () => {
     characters,
     setChatMessages,
     setConversationItems,
+    setLastResponseId,
   } = useConversationStore.getState();
 
   const currentCharacter = characters[selectedCharacter];
@@ -156,6 +157,11 @@ export const processMessages = async () => {
         const currentContent = messageContents.get(item_id) || "";
         const newContent = currentContent + (delta || "");
         messageContents.set(item_id, newContent);
+
+        // Store the response ID for threading
+        if (!currentCharacter.lastResponseId) {
+          setLastResponseId(item_id);
+        }
 
         // Find or create message
         const messageIndex = currentCharacter.chatMessages.findIndex(

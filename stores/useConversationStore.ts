@@ -11,6 +11,7 @@ interface CharacterState {
   chatMessages: Item[];
   conversationItems: any[];
   lastResponseId?: string;
+  threadId?: string;
 }
 
 interface ConversationState {
@@ -23,6 +24,7 @@ interface ConversationState {
   addChatMessage: (item: Item) => void;
   addConversationItem: (message: ChatCompletionMessageParam) => void;
   setLastResponseId: (responseId: string) => void;
+  setThreadId: (threadId: string) => void;
   clearConversation: () => void;
   clearAllConversations: () => void;
   rawSet: (state: any) => void;
@@ -31,6 +33,8 @@ interface ConversationState {
 const initialCharacterState = (characterId: string) => ({
   chatMessages: [],
   conversationItems: [],
+  lastResponseId: undefined,
+  threadId: undefined,
 });
 
 // Initialize state for each character
@@ -112,6 +116,17 @@ const useConversationStore = create<ConversationState>()(
             [state.selectedCharacter]: {
               ...state.characters[state.selectedCharacter],
               lastResponseId: responseId,
+            },
+          },
+        })),
+
+      setThreadId: (threadId) =>
+        set((state) => ({
+          characters: {
+            ...state.characters,
+            [state.selectedCharacter]: {
+              ...state.characters[state.selectedCharacter],
+              threadId: threadId,
             },
           },
         })),
