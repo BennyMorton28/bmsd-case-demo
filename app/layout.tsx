@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { getServerSession } from "next-auth";
 import AuthProvider from "@/components/providers/session-provider";
-import Script from "next/script";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -28,18 +27,17 @@ export default async function RootLayout({
   return (
     <html lang="en" className="h-full">
       <head>
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-TMYXK6G7Q7"
-          strategy="afterInteractive"
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-TMYXK6G7Q7"></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-TMYXK6G7Q7');
+            `,
+          }}
         />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-TMYXK6G7Q7');
-          `}
-        </Script>
       </head>
       <body className={`${inter.className} h-full`}>
         <AuthProvider>
