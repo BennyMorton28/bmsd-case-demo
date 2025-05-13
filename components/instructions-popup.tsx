@@ -3,7 +3,7 @@ import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const instructions = [
   {
-    title: "Welcome to BMSD Case Study",
+    title: "Case Study: Boston Metro School District",
     content: "This interactive case study allows you to explore the transportation challenges facing BMSD through conversations with key stakeholders. You'll be able to understand different perspectives and work towards finding solutions."
   },
   {
